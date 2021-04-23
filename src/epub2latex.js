@@ -83,13 +83,30 @@ function guessText(ctx, node) {
       }
     } else {
       //only support inside footnote as link
-      console.error("************************** skip link", ATag.textContent)
+      console.error(
+        "************************** skip link",
+        ATag.textContent,
+        ctx.path
+      )
       return
     }
   }
 
-  const styles = ctx.dom.window.getComputedStyle(node.parentNode)
-  const style = {}
+  let style = {}
+  if (node.parentNode.nodeName !== "P") {
+    style = getTextStyle(ctx, node.parentNode)
+  }
+
+  return {
+    type: "normal",
+    content: txt,
+    style,
+  }
+}
+
+function getTextStyle(ctx, node) {
+  var style = {}
+  const styles = ctx.dom.window.getComputedStyle(node)
   if (styles.getPropertyValue("font-family").indexOf("STKaiti") >= 0)
     style.kaiti = 1
   if (styles.getPropertyValue("text-align").indexOf("right") >= 0)
@@ -99,12 +116,7 @@ function guessText(ctx, node) {
   if (styles.getPropertyValue("font-weight").indexOf("bold") >= 0)
     style.bold = 1
   if (parseFloat(styles.getPropertyValue("font-size")) < 1) style.small = 1
-
-  return {
-    type: "normal",
-    content: txt,
-    style,
-  }
+  return style
 }
 
 function formatDOM(ctx, node, result = []) {
@@ -119,28 +131,46 @@ function formatDOM(ctx, node, result = []) {
       result.push(item)
     }
   }
-  for (let child of node.childNodes) {
-    formatDOM(ctx, child, result)
-  }
+
+  var pStyle = false
   if (
     node.nodeName === "P" &&
     result.length > 0 &&
-    result.slice(-1)[0].type !== "paragraph"
+    result.slice(-1)[0].type !== "paragraph-end"
   ) {
+    pStyle = getTextStyle(ctx, node)
     result.push({
-      type: "paragraph",
+      type: "paragraph-start",
+      style: pStyle,
+    })
+  }
+  for (let child of node.childNodes) {
+    formatDOM(ctx, child, result)
+  }
+  if (pStyle) {
+    result.push({
+      type: "paragraph-end",
+      style: pStyle,
     })
   }
   return result
 }
 
 function trimBlocks(blocks) {
-  while (blocks.length > 0) {
-    if (blocks[0].type === "paragraph") blocks.splice(0, 1)
+  while (blocks.length > 1) {
+    if (
+      blocks[0].type === "paragraph-start" &&
+      blocks[1].type === "paragraph-end"
+    )
+      blocks.splice(0, 2)
     else break
   }
-  while (blocks.length > 0) {
-    if (blocks[blocks.length - 1].type === "paragraph") blocks.splice(-1, 1)
+  while (blocks.length > 1) {
+    if (
+      blocks[blocks.length - 2].type === "paragraph-start" &&
+      blocks[blocks.length - 1].type === "paragraph-end"
+    )
+      blocks.splice(-2, 2)
     else break
   }
   return blocks
@@ -247,11 +277,33 @@ function formatText(item, astyle) {
   return textContent
 }
 
+function textStyleStart(style) {
+  var result = ""
+  if (style.center) result = `${result} \\begin{center}`
+  if (style.right) result = `${result} \\begin{flushright}`
+  if (style.bold) result = `${result} {\\textbf `
+  if (style.small) result = `${result} {\\small `
+  if (style.kaiti) result = `${result} {\\kaishu `
+  return result
+}
+
+function textStyleEnd(style) {
+  var result = ""
+  if (style.kaiti) result = `${result} }`
+  if (style.small) result = `${result} }`
+  if (style.bold) result = `${result} }`
+  if (style.right) result = `${result} \\end{flushright}`
+  if (style.center) result = `${result} \\end{center}`
+  return result
+}
+
 function item2latex(item) {
   if (item.type == "image") {
     return `\\includepdf{${item.path}}`
-  } else if (item.type == "paragraph") {
-    return "\n\n"
+  } else if (item.type == "paragraph-start") {
+    return textStyleStart(item.style)
+  } else if (item.type == "paragraph-end") {
+    return textStyleEnd(item.style) + "\n\n"
   } else if (item.type == "normal") {
     return formatText(item)
   } else if (item.type == "chapter") {

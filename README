@@ -1,3 +1,5 @@
 使用 Remarkable2 阅读中文 epub 存在各种痛点
 
 这个工具用来将 epub 通过 latex 转换成适合 Remarkable2 阅读的 pdf 格式
+
+代码还在非常初级的阶段，还不具有什么可用性
