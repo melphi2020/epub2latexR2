@@ -56,21 +56,29 @@ function guessImage(ctx, node) {
   }
 }
 
+function parentNodeNameEquak(node, deep, name) {
+  for (let i = 0; i < deep; i++) {
+    if (node && node.parentNode && node.parentNode.nodeName === name)
+      return true
+    node = node.parentNode
+  }
+}
+
 function guessText(ctx, node) {
   var txt = node.textContent.trim()
   if (txt === "") return
 
-  if (node.parentNode.nodeName === "H1")
+  if (parentNodeNameEquak(node, 2, "H1"))
     return {
       type: "chapter",
       content: txt,
     }
-  if (node.parentNode.nodeName === "H2")
+  if (parentNodeNameEquak(node, 2, "H2"))
     return {
       type: "section",
       content: txt,
     }
-  if (node.parentNode.nodeName === "H3")
+  if (parentNodeNameEquak(node, 2, "H3"))
     return {
       type: "subsection",
       content: txt,
@@ -135,7 +143,7 @@ function formatDOM(ctx, node, result = []) {
   }
 
   var pStyle = false
-  if (node.nodeName === "P" && result.length > 0) {
+  if (node.nodeName === "P") {
     pStyle = getTextStyle(ctx, node)
     result.push({
       type: "paragraph-start",
@@ -149,6 +157,12 @@ function formatDOM(ctx, node, result = []) {
     if (result.slice(-1)[0].type === "paragraph-start") {
       //remove empty param
       result.splice(-1, 1)
+    } else if (
+      result.length > 1 &&
+      result.slice(-2)[0].type === "paragraph-start" &&
+      result.slice(-1)[0].type === "image"
+    ) {
+      result.splice(-2, 1)
     } else {
       result.push({
         type: "paragraph-end",
@@ -327,7 +341,7 @@ function item2latex(item) {
 }
 
 function page2latex(page) {
-  return page.map((item) => item2latex(item)).join("") + "\n\\newpage"
+  return page.map((item) => item2latex(item)).join("") + "\\newpage"
 }
 
 async function epub2latex(epubpath, outdir) {
