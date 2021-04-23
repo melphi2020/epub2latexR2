@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "adm-zip": "^0.5.5",
+    "jimp": "^0.16.1",
     "jsdom": "^16.5.3",
     "xml2json": "^0.12.0"
   }

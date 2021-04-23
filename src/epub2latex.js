@@ -1,6 +1,8 @@
 const AdmZip = require("adm-zip")
 const xmlParser = require("xml2json")
 const { JSDOM, VirtualConsole } = require("jsdom")
+const jimp = require("jimp")
+
 async function unzip(path, out) {
   const zip = new AdmZip(path)
   zip.extractAllTo(out, true)
@@ -133,11 +135,7 @@ function formatDOM(ctx, node, result = []) {
   }
 
   var pStyle = false
-  if (
-    node.nodeName === "P" &&
-    result.length > 0 &&
-    result.slice(-1)[0].type !== "paragraph-end"
-  ) {
+  if (node.nodeName === "P" && result.length > 0) {
     pStyle = getTextStyle(ctx, node)
     result.push({
       type: "paragraph-start",
@@ -148,10 +146,15 @@ function formatDOM(ctx, node, result = []) {
     formatDOM(ctx, child, result)
   }
   if (pStyle) {
-    result.push({
-      type: "paragraph-end",
-      style: pStyle,
-    })
+    if (result.slice(-1)[0].type === "paragraph-start") {
+      //remove empty param
+      result.splice(-1, 1)
+    } else {
+      result.push({
+        type: "paragraph-end",
+        style: pStyle,
+      })
+    }
   }
   return result
 }
@@ -269,6 +272,10 @@ function formatText(item, astyle) {
     return `{\\kaishu ${formatText(item, style)}}`
   }
   var textContent = item.content
+  return escapeLatex(textContent)
+}
+
+function escapeLatex(textContent) {
   textContent = textContent.replace(/&/g, "\\&")
   textContent = textContent.replace(/%/g, "\\%")
   textContent = textContent.replace(/\$/g, "\\$")
@@ -307,13 +314,13 @@ function item2latex(item) {
   } else if (item.type == "normal") {
     return formatText(item)
   } else if (item.type == "chapter") {
-    return `\\chapter*{${item.content}}\n\n`
+    return `\n\n\\chapter*{${item.content}}\n\n`
   } else if (item.type == "section") {
-    return `\\section*{${item.content}}\n\n`
+    return `\n\n\\section*{${item.content}}\n\n`
   } else if (item.type == "subsection") {
-    return `\\subsection*{${item.content}}\n\n`
+    return `\n\n\\subsection*{${item.content}}\n\n`
   } else if (item.type == "footnote") {
-    return `\\footnote{${item.txt}}`
+    return `\\footnote{${escapeLatex(item.txt)}}`
   } else {
     console.error("unkonw item type:", item)
   }
@@ -350,10 +357,36 @@ async function epub2latex(epubpath, outdir) {
     src: epubpath,
     pages,
   }
+  require("fs").writeFileSync(
+    require("path").join(outdir, "tmp.json"),
+    JSON.stringify(book, "\n", " ")
+  )
+  await resizeImages(book)
   await pages2Latex(book)
   await latex2PDF(book)
   await renamePDF(book)
   await openPDF(book)
+}
+
+async function resizeImg(image, filename) {
+  if (image.bitmap.width > 900) {
+    image = await image.resize(900, jimp.AUTO)
+  }
+  if (image.bitmap.height > 900) {
+    image = await image.resize(jimp.AUTO, 900)
+  }
+  await image.writeAsync(filename)
+}
+
+async function resizeImages(book) {
+  for (let page of book.pages) {
+    for (let item of page) {
+      if (item.type === "image") {
+        let image = await jimp.read(item.path)
+        await resizeImg(image, item.path)
+      }
+    }
+  }
 }
 
 async function renamePDF(book) {
