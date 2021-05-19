@@ -45,15 +45,21 @@ function getParentNode(node, name) {
   return false
 }
 
-function guessImage(ctx, node) {
+async function guessImage(ctx, node) {
   const path =
     node.getAttribute("src") ||
     node.getAttribute("href") ||
     node.getAttribute("xlink:href")
-  return {
+  let item = {
     type: "image",
     path: require("path").resolve(require("path").dirname(ctx.path), path),
   }
+  const fontimg = ["00022.jpeg", "00029.jpeg", "00040.jpeg"]
+  const filename = item.path.split("/").slice(-1)[0]
+  if (fontimg.indexOf(filename) >= 0) {
+    item.type = "font-image"
+  }
+  return item
 }
 
 function parentNodeNameEquak(node, deep, name) {
@@ -129,14 +135,14 @@ function getTextStyle(ctx, node) {
   return style
 }
 
-function formatDOM(ctx, node, result = []) {
+async function formatDOM(ctx, node, result = []) {
   if (node.nodeName === "#text") {
-    const item = guessText(ctx, node)
+    const item = await guessText(ctx, node)
     if (item) {
       result.push(item)
     }
   } else if (node.nodeName === "image" || node.nodeName === "IMG") {
-    const item = guessImage(ctx, node)
+    const item = await guessImage(ctx, node)
     if (item) {
       result.push(item)
     }
@@ -201,8 +207,8 @@ async function formatPage(page) {
     const dom = await JSDOM.fromFile(pagePath, {
       resources: "usable",
     })
-    dom.window.addEventListener("load", () => {
-      const blocks = formatDOM(
+    dom.window.addEventListener("load", async () => {
+      const blocks = await formatDOM(
         {
           path: pagePath,
           dom,
@@ -245,6 +251,7 @@ async function pages2Latex(book) {
 \\newcommand{\\sectionbreak}{\\clearpage}
 \\usepackage{titlesec}
 \\usepackage{titletoc}
+\\usepackage[export]{adjustbox}
 \\titlecontents{section}
               [0.5cm]
               {\\bf \\large}%
@@ -321,6 +328,8 @@ function textStyleEnd(style) {
 function item2latex(item) {
   if (item.type == "image") {
     return `\\includepdf{${item.path}}`
+  } else if (item.type == "font-image") {
+    return `\\includegraphics[width=12pt,height=12pt,valign=c]{${item.path}}`
   } else if (item.type == "paragraph-start") {
     return textStyleStart(item.style)
   } else if (item.type == "paragraph-end") {
@@ -396,6 +405,7 @@ async function resizeImages(book) {
   for (let page of book.pages) {
     for (let item of page) {
       if (item.type === "image") {
+        console.error("resize image", item.path)
         let image = await jimp.read(item.path)
         await resizeImg(image, item.path)
       }
