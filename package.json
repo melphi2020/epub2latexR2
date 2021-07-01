@@ -9,7 +9,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@jimp/gif": "^0.16.1",
     "adm-zip": "^0.5.5",
+    "iconv-lite": "^0.6.3",
     "jimp": "^0.16.1",
     "jsdom": "^16.5.3",
     "xml2json": "^0.12.0"

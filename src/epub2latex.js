@@ -30,22 +30,28 @@ function findFootnoteContent(node) {
       }
       return targetTxt
     }
-  } catch (ex) {}
+  } catch (ex) {
+    console.error("遇到错误", ex)
+  }
 }
 
 function getParentNode(node, name) {
-  if (node.parentNode != null && node.parentNode.nodeName === name)
+  if (
+    node.parentNode != null &&
+    node.parentNode.nodeName.toUpperCase() === name.toUpperCase()
+  )
     return node.parentNode
   if (
     node.parentNode != null &&
     node.parentNode.parentNode != null &&
-    node.parentNode.parentNode.nodeName === name
+    node.parentNode.parentNode.nodeName.toUpperCase() === name.toUpperCase()
   )
     return node.parentNode.parentNode
   return false
 }
 
-async function guessImage(ctx, node) {
+let coverFind = false
+function guessImage(ctx, node) {
   const path =
     node.getAttribute("src") ||
     node.getAttribute("href") ||
@@ -54,7 +60,18 @@ async function guessImage(ctx, node) {
     type: "image",
     path: require("path").resolve(require("path").dirname(ctx.path), path),
   }
-  const fontimg = ["00022.jpeg", "00029.jpeg", "00040.jpeg"]
+  if (!coverFind) {
+    item.type = "cover-image"
+    coverFind = true
+  }
+  const styles = ctx.dom.window.getComputedStyle(node)
+  const stylewidth = styles.getPropertyValue("width")
+  const styleheight = styles.getPropertyValue("height")
+  const width = node.getAttribute("width")
+  const height = node.getAttribute("height")
+  item.width = DM2Pixel(width || stylewidth || node.clientWidth)
+  item.height = DM2Pixel(height || styleheight || node.clientHeight)
+  const fontimg = ["00004.jpeg", "00013.jpeg"]
   const filename = item.path.split("/").slice(-1)[0]
   if (fontimg.indexOf(filename) >= 0) {
     item.type = "font-image"
@@ -62,9 +79,19 @@ async function guessImage(ctx, node) {
   return item
 }
 
+function DM2Pixel(dm) {
+  if (dm.endsWith("em")) return parseFloat(dm) * 16
+  if (dm === "auto") return -1
+  return parseFloat(dm)
+}
+
 function parentNodeNameEquak(node, deep, name) {
   for (let i = 0; i < deep; i++) {
-    if (node && node.parentNode && node.parentNode.nodeName === name)
+    if (
+      node &&
+      node.parentNode &&
+      node.parentNode.nodeName.toUpperCase() === name.toUpperCase()
+    )
       return true
     node = node.parentNode
   }
@@ -109,7 +136,7 @@ function guessText(ctx, node) {
   }
 
   let style = {}
-  if (node.parentNode.nodeName !== "P") {
+  if (node.parentNode.nodeName.toUpperCase() !== "P") {
     style = getTextStyle(ctx, node.parentNode)
   }
 
@@ -135,21 +162,33 @@ function getTextStyle(ctx, node) {
   return style
 }
 
-async function formatDOM(ctx, node, result = []) {
+function formatDOM(ctx, node, result = []) {
   if (node.nodeName === "#text") {
-    const item = await guessText(ctx, node)
+    const item = guessText(ctx, node)
     if (item) {
       result.push(item)
     }
-  } else if (node.nodeName === "image" || node.nodeName === "IMG") {
-    const item = await guessImage(ctx, node)
+  } else if (
+    node.nodeName === "image" ||
+    node.nodeName.toUpperCase() === "IMG"
+  ) {
+    const item = guessImage(ctx, node)
     if (item) {
       result.push(item)
     }
   }
 
-  var pStyle = false
-  if (node.nodeName === "P") {
+  let pStyle = false
+  if (node.nodeName === "H1") {
+    result.push({
+      type: "chapter-start",
+    })
+  } else if (node.nodeName === "H3") {
+    result.push({
+      type: "subsection-start",
+    })
+  }
+  if (node.nodeName === "P" || node.nodeName === "BLOCKQUOTE") {
     pStyle = getTextStyle(ctx, node)
     result.push({
       type: "paragraph-start",
@@ -176,10 +215,20 @@ async function formatDOM(ctx, node, result = []) {
       })
     }
   }
+  if (node.nodeName === "H1") {
+    result.push({
+      type: "chapter-end",
+    })
+  } else if (node.nodeName === "H3") {
+    result.push({
+      type: "subsection-end",
+    })
+  }
   return result
 }
 
 function trimBlocks(blocks) {
+  //前面的连续空段落
   while (blocks.length > 1) {
     if (
       blocks[0].type === "paragraph-start" &&
@@ -188,6 +237,7 @@ function trimBlocks(blocks) {
       blocks.splice(0, 2)
     else break
   }
+  //后面的连续空段落
   while (blocks.length > 1) {
     if (
       blocks[blocks.length - 2].type === "paragraph-start" &&
@@ -252,19 +302,8 @@ async function pages2Latex(book) {
 \\usepackage{titlesec}
 \\usepackage{titletoc}
 \\usepackage[export]{adjustbox}
-\\titlecontents{section}
-              [0.5cm]
-              {\\bf \\large}%
-              {\\contentslabel{2.5em}}%
-              {}%
-              {\\titlerule*[0.5pc]{$\\cdot$}\\contentspage\\hspace*{0.5cm}}%
-\\makeatletter
-\\def\\@textbottom{\\vskip \\z@ \\@plus 1pt}
-\\let\\@texttop\\relax
-\\makeatother              
 \\begin{document}
 \\pagenumbering{gobble}
-
 ${book.pages.map((page) => page2latex(page)).join("\n\n")}
 \\end{document} 
 `
@@ -327,6 +366,12 @@ function textStyleEnd(style) {
 
 function item2latex(item) {
   if (item.type == "image") {
+    return `\\includegraphics[${
+      item.width > 0 ? "width=" + item.width / 221.0 + "in," : ""
+    }${item.height > 0 ? "height=" + item.height / 221.0 + "in," : ""}]{${
+      item.path
+    }}`
+  } else if (item.type == "cover-image") {
     return `\\includepdf{${item.path}}`
   } else if (item.type == "font-image") {
     return `\\includegraphics[width=12pt,height=12pt,valign=c]{${item.path}}`
@@ -336,12 +381,20 @@ function item2latex(item) {
     return textStyleEnd(item.style) + "\n\n"
   } else if (item.type == "normal") {
     return formatText(item)
+  } else if (item.type == "chapter-start") {
+    return `\n\n\\chapter*{`
+  } else if (item.type == "chapter-end") {
+    return `}\n\n`
+  } else if (item.type == "subsection-start") {
+    return `\n\n\\subsection*{`
+  } else if (item.type == "subsection-end") {
+    return `}\n\n`
   } else if (item.type == "chapter") {
-    return `\n\n\\chapter*{${item.content}}\n\n`
+    return `${item.content}\\\\`
   } else if (item.type == "section") {
     return `\n\n\\section*{${item.content}}\n\n`
   } else if (item.type == "subsection") {
-    return `\n\n\\subsection*{${item.content}}\n\n`
+    return `${item.content}\\\\`
   } else if (item.type == "footnote") {
     return `\\footnote{${escapeLatex(item.txt)}}`
   } else {
@@ -404,9 +457,11 @@ async function resizeImg(image, filename) {
 async function resizeImages(book) {
   for (let page of book.pages) {
     for (let item of page) {
-      if (item.type === "image") {
+      if (item.type !== "image" || !item.path.endsWith(".gif")) continue
+      if (item.type === "image" || item.type === "font-image") {
         console.error("resize image", item.path)
         let image = await jimp.read(item.path)
+        item.path = item.path.replace(/.gif/g, ".jpg")
         await resizeImg(image, item.path)
       }
     }
@@ -425,7 +480,10 @@ async function renamePDF(book) {
 async function latex2PDF() {
   return new Promise((resolve) => {
     const { spawn } = require("child_process")
-    const child = spawn("sh", ["-c", "cd out && xelatex book.tex"])
+    const child = spawn("sh", [
+      "-c",
+      "cd out && xelatex book.tex && xelatex book.tex",
+    ])
     child.stdout.pipe(process.stdout)
     child.stderr.pipe(process.stdout)
     child.on("close", (code) => {
