@@ -275,7 +275,9 @@ async function pages2Latex(book) {
   const TextHeight = 7.5
   var latex = `
 \\documentclass[UTF8,zihao=-4,oneside,scheme=chinese,openany]{ctexbook}
-\\setCJKmainfont[Path=/Users/wesleywang/Library/Fonts/,BoldFont=方正小标宋_GBK]{方正书宋_GBK.ttf}
+\\setCJKmainfont[Path=${
+    process.env.FONT_PATH || "/Users/wesleywang/Library/Fonts/"
+  },BoldFont=方正小标宋_GBK]{方正书宋_GBK.ttf}
 \\usepackage[T1]{fontenc}
 \\usepackage{geometry}
 \\usepackage{graphicx}
