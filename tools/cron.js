@@ -105,7 +105,7 @@ async function DownloadFile(file) {
 
 async function FileProcessDone(file) {
   console.log(`check file done of ${file.name} ...`)
-  return !require("fs").existsSync(
+  return require("fs").existsSync(
     `/home/ubuntu/BaiduPCS-Go/pdfs/${file.pdfname}`
   )
 }
