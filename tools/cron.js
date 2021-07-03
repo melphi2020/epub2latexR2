@@ -6,7 +6,8 @@ async function main() {
     for (let file of files) {
       file.pdfname = file.name.replace("epub", "pdf")
       try {
-        if (await !FileProcessDone(file)) {
+        const filedone = await FileProcessDone(file)
+        if (!filedone) {
           if (await DownloadFile(file)) {
             if (await ConvertFile(file)) {
               if (await ImportFile(file)) {
@@ -24,6 +25,8 @@ async function main() {
           } else {
             console.log(`${file.name} download fail!`)
           }
+        } else {
+          console.log(`${file.name} skip!`)
         }
       } catch (ex) {
         console.log("meet error when running:", ex)
