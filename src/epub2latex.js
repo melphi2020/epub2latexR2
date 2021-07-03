@@ -484,7 +484,7 @@ async function latex2PDF() {
     const { spawn } = require("child_process")
     const child = spawn("sh", [
       "-c",
-      "cd out && xelatex book.tex && xelatex book.tex",
+      `cd ${require("path").join(__dirname, "..", "out")} && xelatex book.tex`,
     ])
     child.stdout.pipe(process.stdout)
     child.stderr.pipe(process.stdout)
