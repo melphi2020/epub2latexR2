@@ -1,7 +1,5 @@
 // 每隔1分钟检查一下有没有新书到站，如果有，自动将epub转换成pdf，然后导入remarkable2 cloud.
 
-const { rejects } = require("assert")
-
 async function main() {
   while (true) {
     files = await fetchFiles()
@@ -120,3 +118,11 @@ async function fetchFiles() {
     )
   })
 }
+
+async function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
+main()
