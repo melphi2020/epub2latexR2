@@ -271,8 +271,8 @@ async function formatPage(page) {
   })
 }
 
-  const TextWidth = 5.5
-  const TextHeight = 7.5
+const TextWidth = 5.5
+const TextHeight = 7.5
 async function pages2Latex(book) {
   var latex = `
 \\documentclass[UTF8,zihao=-4,oneside,scheme=chinese,openany]{ctexbook}
@@ -369,11 +369,11 @@ function textStyleEnd(style) {
 
 function item2latex(item) {
   if (item.type == "image") {
-	  let width = item.width ? item.width / 221.0 : 0
-	  let height = item.height ? item.height / 221 : 0
-          if (width > TextWidth) width = TextWidth
-	  if (height > TextHeight) height = TextHeight
-    return `\\begin{figure*}[ht]\\centering\\adjincludegraphics[max height=${TextHeight}in,max width=${TextWidth}in,${
+    let width = item.width ? item.width / 221.0 : 0
+    let height = item.height ? item.height / 221 : 0
+    if (width > TextWidth) width = TextWidth
+    if (height > TextHeight) height = TextHeight
+    return `\\begin{figure*}[hbt!]\\centering\\adjincludegraphics[max height=${TextHeight}in,max width=${TextWidth}in,${
       width > 0 ? "width=" + width + "in," : ""
     }${height > 0 ? "height=" + height + "in," : ""}]{${
       item.path
