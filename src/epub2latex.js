@@ -80,6 +80,7 @@ function guessImage(ctx, node) {
 }
 
 function DM2Pixel(dm) {
+  if (dm.endsWith("%")) return parseFloat(dm) * 221 * 6.1823
   if (dm.endsWith("em")) return parseFloat(dm) * 16
   if (dm === "auto") return -1
   return parseFloat(dm)
@@ -270,9 +271,9 @@ async function formatPage(page) {
   })
 }
 
-async function pages2Latex(book) {
   const TextWidth = 5.5
   const TextHeight = 7.5
+async function pages2Latex(book) {
   var latex = `
 \\documentclass[UTF8,zihao=-4,oneside,scheme=chinese,openany]{ctexbook}
 \\setCJKmainfont[Path=${
@@ -368,11 +369,15 @@ function textStyleEnd(style) {
 
 function item2latex(item) {
   if (item.type == "image") {
-    return `\\includegraphics[${
-      item.width > 0 ? "width=" + item.width / 221.0 + "in," : ""
-    }${item.height > 0 ? "height=" + item.height / 221.0 + "in," : ""}]{${
+	  let width = item.width ? item.width / 221.0 : 0
+	  let height = item.height ? item.height / 221 : 0
+          if (width > TextWidth) width = TextWidth
+	  if (height > TextHeight) height = TextHeight
+    return `\\begin{figure*}[ht]\\centering\\adjincludegraphics[max height=${TextHeight}in,max width=${TextWidth}in,${
+      width > 0 ? "width=" + width + "in," : ""
+    }${height > 0 ? "height=" + height + "in," : ""}]{${
       item.path
-    }}`
+    }}\\end{figure*}`
   } else if (item.type == "cover-image") {
     return `\\includepdf{${item.path}}`
   } else if (item.type == "font-image") {
