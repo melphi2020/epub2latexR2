@@ -305,6 +305,10 @@ async function pages2Latex(book) {
 \\usepackage{titlesec}
 \\usepackage{titletoc}
 \\usepackage[export]{adjustbox}
+\\tolerance=1
+\\emergencystretch=\\maxdimen
+\\hyphenpenalty=10000
+\\hbadness=10000
 \\begin{document}
 \\pagenumbering{gobble}
 ${book.pages.map((page) => page2latex(page)).join("\n\n")}
