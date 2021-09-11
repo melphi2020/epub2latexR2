@@ -71,7 +71,7 @@ function guessImage(ctx, node) {
   const height = node.getAttribute("height")
   item.width = DM2Pixel(width || stylewidth || node.clientWidth)
   item.height = DM2Pixel(height || styleheight || node.clientHeight)
-  const fontimg = ["00004.jpeg", "00013.jpeg"]
+  const fontimg = []
   const filename = item.path.split("/").slice(-1)[0]
   if (fontimg.indexOf(filename) >= 0) {
     item.type = "font-image"
@@ -82,6 +82,7 @@ function guessImage(ctx, node) {
 function DM2Pixel(dm) {
   if (dm.endsWith("%")) return parseFloat(dm) * 221 * 6.1823
   if (dm.endsWith("em")) return parseFloat(dm) * 16
+  if (dm.endsWith("pt")) return parseFloat(dm)
   if (dm === "auto") return -1
   return parseFloat(dm)
 }
@@ -463,17 +464,22 @@ async function resizeImg(image, filename) {
     image = await image.resize(jimp.AUTO, 900)
   }
   await image.writeAsync(filename)
+  return [image.bitmap.width, image.bitmap.height]
 }
 
 async function resizeImages(book) {
   for (let page of book.pages) {
     for (let item of page) {
-      if (item.type !== "image" || !item.path.endsWith(".gif")) continue
       if (item.type === "image" || item.type === "font-image") {
         console.error("resize image", item.path)
         let image = await jimp.read(item.path)
-        item.path = item.path.replace(/.gif/g, ".jpg")
-        await resizeImg(image, item.path)
+        item.path = item.path.replace(/.gif/g, ".png")
+        item.path = item.path.replace(/.jpg/g, ".png")
+        item.path = item.path.replace(/.jpeg/g, ".png")
+        const [w, h] = await resizeImg(image, item.path)
+        if (w < 120 && h < 120) {
+          item.type == "font-image"
+        }
       }
     }
   }
